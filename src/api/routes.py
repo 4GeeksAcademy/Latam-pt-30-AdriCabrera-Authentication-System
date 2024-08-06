@@ -17,17 +17,19 @@ api = Blueprint('api', __name__)
 CORS(api)
 
 
-@api.route('/user', methods=['POST'])
+@api.route('/signup', methods=['POST'])
 def create_user():
     data = request.json
-    email_in_data = data.get("email")
-    password_in_data = data.get("password")
-    if None in [email_in_data, password_in_data]:
+    email = data.get("email")
+    password = data.get("password")
+    
+    if None in [email, password]:
         return jsonify({
             "Message": "Required email and password"
         }), 400
-    user_email = email_in_data
-    user_password = password_in_data
+    
+    user_email = email
+    user_password = password
     user_exists = db.session.execute(db.select(User).filter_by(email=user_email)).one_or_none()
 
     if user_exists:
@@ -47,32 +49,28 @@ def create_user():
             "Message":"DB error"
         })
 
-    return jsonify({}), 200
+    return jsonify({"Message": "New user created"}), 200
 
 @api.route('/login', methods=['POST'])
 def login_user():
     data = request.json
-    email_in_data = data.get("email")
-    password_in_data = data.get("password")
-    if None in [email_in_data, password_in_data]:
+    email = data.get("email")
+    password = data.get("password")
+
+    if None in [email, password]:
         return jsonify({
             "Message": "Required email and password"
         }), 400
     
-    user_result = db.session.execute(db.select(User).filter_by(email=data["email"])).one_or_none()
+    user = User.query.filter((User.email == email)).first()
 
-    if user_result is None:
+    if user is None or user.password != password:
         return jsonify({
             "Message": "Ivalid email or password"
         }), 400
-    
-    user = user_result[0]
-    password_is_valid = data["password"] == user.password
+     
+    token = create_access_token(identity=user.id) 
 
-    if not password_is_valid:
-        return jsonify({
-            "Message": "Invalid email or password"
-        }), 400
-    
-    return jsonify({"Message": "Login"}), 201
+    return jsonify({"token": token ,"user": user.serialize()}), 201
 
+    
